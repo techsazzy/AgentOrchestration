@@ -26,6 +26,8 @@ class OrchestrationEngine:
         }
 
     def register_hook(self, event: str, callback: Callable) -> None:
+        if not event or not event.strip():
+            raise ValueError("hook event name cannot be empty or blank")
         if event in self._hooks:
             self._hooks[event].append(callback)
 

@@ -135,3 +135,16 @@ class TestConfig:
 # 2026-02-11T19:28:37 update
 
 # 2026-04-17T10:00:53 update
+
+    def test_atomic_reload_on_failure(self, tmp_path):
+        import json
+        config_file = tmp_path / "config.json"
+        config_file.write_text('{"app": {"name": "test"}}')
+        config = Config(str(config_file))
+        assert config.get("app.name") == "test"
+        # Corrupt the config file with invalid JSON
+        config_file.write_text('{"app": {"name": "invalid",}')
+        # Reload should fail but keep the old data
+        with pytest.raises(json.JSONDecodeError):
+            config.reload()
+        assert config.get("app.name") == "test"

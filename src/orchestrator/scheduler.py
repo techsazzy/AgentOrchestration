@@ -88,9 +88,9 @@ class TaskScheduler:
                 return task
         return None
 
-    def extend_task_visibility(self, task_id: str, extension_seconds: float) -> bool:
+    def extend_task_visibility(self, task_id: str, extension_seconds: float, extension_id: str | None = None) -> bool:
         """Explicitly extend visibility for long running agents."""
-        return self.visibility_manager.extend_visibility(task_id, extension_seconds)
+        return self.visibility_manager.extend_visibility(task_id, extension_seconds, extension_id)
 
     def complete(self, task_id: str) -> bool:
         self.visibility_manager.remove_visibility(task_id)

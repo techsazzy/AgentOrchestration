@@ -34,11 +34,17 @@ class VisibilityManager:
         }
         self._save_state()
 
-    def extend_visibility(self, task_id: str, extension: float):
+    def extend_visibility(self, task_id: str, extension: float, extension_id: str | None = None):
         """Extend the visibility timeout for a long-running task."""
         if task_id in self._state:
+            # Idempotency check: if extension_id already processed, skip
+            if extension_id and self._state[task_id].get("last_extension_id") == extension_id:
+                return True
+                
             self._state[task_id]["expires_at"] = time.time() + extension
             self._state[task_id]["extended_count"] += 1
+            if extension_id:
+                self._state[task_id]["last_extension_id"] = extension_id
             self._save_state()
             return True
         return False

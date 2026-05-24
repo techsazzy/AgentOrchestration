@@ -74,3 +74,18 @@ class TestQueueVisibility:
         # Should NOT be re-enqueued because it was completed
         result = await self.scheduler.dequeue()
         assert result is None
+
+    @pytest.mark.asyncio
+    async def test_visibility_extension_idempotency(self):
+        task = {"name": "idempotent-job"}
+        task_id = self.scheduler.enqueue(task)
+        await self.scheduler.dequeue()
+        
+        # First extension
+        self.scheduler.extend_task_visibility(task_id, 0.5, extension_id="ext_1")
+        assert self.scheduler.visibility_manager._state[task_id]["extended_count"] == 1
+        
+        # Second extension with SAME ID
+        self.scheduler.extend_task_visibility(task_id, 0.5, extension_id="ext_1")
+        # Count should still be 1
+        assert self.scheduler.visibility_manager._state[task_id]["extended_count"] == 1

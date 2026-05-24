@@ -2,12 +2,56 @@
 
 import time
 import logging
+import os
 from typing import Callable
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
 logger = logging.getLogger(__name__)
+
+
+class SecurityMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        is_production_proxy = os.getenv("AO_PRODUCTION_PROXY", "false").lower() == "true"
+        
+        if is_production_proxy:
+            # Under production proxy, we must have HTTPS
+            # Check X-Forwarded-Proto (standard for most proxies)
+            proto = request.headers.get("x-forwarded-proto")
+            scheme = proto.lower() if proto else request.url.scheme
+            
+            if scheme != "https":
+                logger.warning(f"Rejecting non-HTTPS request in production proxy mode")
+                return Response(
+                    status_code=403,
+                    content="HTTPS Required",
+                    headers={
+                        "X-Content-Type-Options": "nosniff",
+                        "X-Frame-Options": "DENY"
+                    }
+                )
+
+        try:
+            response = await call_next(request)
+        except Exception as e:
+            logger.exception("Unhandled exception in security middleware")
+            return Response(
+                status_code=500,
+                content="Internal Server Error",
+                headers={
+                    "X-Content-Type-Options": "nosniff",
+                    "X-Frame-Options": "DENY"
+                }
+            )
+
+        # Add security headers to responses
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        if is_production_proxy or request.url.scheme == "https":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+            
+        return response
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
